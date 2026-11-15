@@ -18,7 +18,7 @@
 #define MOD Mod4Mask
 
 const char *terminal[]  = { "lterm", 0 };
-const char *launcher[]  = { "dmenu", 0 };
+const char *launcher[]  = { "dmenu_run", 0 };
 
 const char *volup[]     = { "vol", "5%+", 0 };
 const char *voldown[]   = { "vol", "5%-", 0 };
