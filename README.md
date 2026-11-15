@@ -6,7 +6,7 @@
 [surf](https://surf.suckless.org), [mousepad](https://github.com/codebrainz/mousepad)
 and [lterm](https://github.com/miublue/lterm).
 
-Its code started as a branch of my other tiling window manager, [lwm](https://github.com/miublue/lwm),
+It started as a branch of my tiling window manager, [lwm](https://github.com/miublue/lwm),
 but it was made into its own thing because i just felt like it.
 
 ## Installation
@@ -22,5 +22,6 @@ Compile with:
 ## Known Issues
 - No support for ICCCM or EWMH.
 - It doesn't keep track of drawing order, thus titlebars may be raised/lowered weirdly when switching workspaces.
-- hovering a window's titlebar doesn't focus it even with `FOCUS_ON_HOVER` enabled.
+- Hovering a window's titlebar doesn't focus it even with `FOCUS_ON_HOVER` enabled.
+- Window title doesn't get updated unless `update_clients` gets called.
 
