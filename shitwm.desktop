@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=shitwm
+Exec=shitwm
+Type=Application
+X-LightDM-DesktopName=shitwm
+X-GNOME_WMName=shitwm
+DesktopNames=shitwm
