@@ -20,8 +20,6 @@ static struct workspace workspaces[MAX_WORKSPACES] = {0};
 static XColor border_normal, border_select;
 static XftColor text_normal, text_select;
 static XftFont *font;
-static XButtonEvent button_event;
-static XWindowAttributes hover_attr;
 static FILE *info_file;
 
 #define CURWS workspaces[cur_ws]
@@ -32,11 +30,9 @@ static void (*events[LASTEvent])(XEvent *ev) = {
     [MapRequest]       = map_request,
     [UnmapNotify]      = unmap_notify,
     [DestroyNotify]    = destroy_notify,
-    [MotionNotify]     = motion_notify,
     [EnterNotify]      = enter_notify,
     [KeyPress]         = key_press,
     [ButtonPress]      = button_press,
-    [ButtonRelease]    = button_release,
 };
 
 void exec(const union arg arg) {
@@ -63,7 +59,7 @@ void win_full(const union arg arg) {
 
 void win_center(const union arg arg) {
     (void)arg;
-    if (CURWS.size == 0 || button_event.subwindow != None) return;
+    if (CURWS.size == 0) return;
     struct client *c = &WSWIN(CURWS.cur);
     c->rect.x = (screen_w/2) - (c->rect.w/2);
     c->rect.y = (screen_h/2) - (c->rect.h/2) + TITLEBAR_HEIGHT/2 + topgap;
@@ -73,7 +69,7 @@ void win_center(const union arg arg) {
 
 void win_monocle(const union arg arg) {
     (void)arg;
-    if (CURWS.size == 0 || button_event.subwindow != None || WSWIN(CURWS.cur).is_full) return;
+    if (CURWS.size == 0 || WSWIN(CURWS.cur).is_full) return;
     struct client *c = &WSWIN(CURWS.cur);
     const int bs=BORDER_SIZE*2;
     if ((c->is_mono = !c->is_mono)) {
@@ -165,24 +161,8 @@ static void destroy_notify(XEvent *ev) {
     update_clients();
 }
 
-static void motion_notify(XEvent *ev) {
-    int c = client_from_window(button_event.subwindow);
-    if (c == -1 || WSWIN(c).is_full) return;
-    WSWIN(c).is_mono = 0;
-    win_focus(c);
-    const int xdiff = ev->xbutton.x_root - button_event.x_root;
-    const int ydiff = ev->xbutton.y_root - button_event.y_root;
-    XMoveResizeWindow(display, button_event.subwindow,
-        hover_attr.x + (button_event.button==1 ? xdiff : 0),
-        hover_attr.y + (button_event.button==1 ? ydiff : 0),
-        MAX(50, hover_attr.width  + (button_event.button==3 ? xdiff : 0)),
-        MAX(50, hover_attr.height + (button_event.button==3 ? ydiff : 0)));
-    set_client_size(c);
-    update_clients();
-}
-
 static void enter_notify(XEvent *ev) {
-    if (button_event.subwindow != None || !CURWS.size || WSWIN(CURWS.cur).is_full) return;
+    if (!CURWS.size || WSWIN(CURWS.cur).is_full) return;
     while (XCheckTypedEvent(display, EnterNotify, ev));
     if (!FOCUS_ON_HOVER) return;
     int c = client_from_window(ev->xcrossing.window);
@@ -208,17 +188,35 @@ static void key_press(XEvent *ev) {
 
 static void button_press(XEvent *ev) {
     if (ev->xbutton.subwindow == None || !CURWS.size || WSWIN(CURWS.cur).is_full) return;
-    int c = client_from_window(ev->xbutton.subwindow);
-    if (c == -1 || WSWIN(c).is_full) return;
-    set_client_size(c);
-    win_focus(c);
-    XGetWindowAttributes(display, WSWIN(c).wn, &hover_attr);
-    button_event = ev->xbutton, button_event.subwindow = WSWIN(c).wn;
-}
 
-static void button_release(XEvent *ev) {
-    (void)ev;
-    button_event.subwindow = None;
+    const uint32_t mask = ButtonPressMask|ButtonReleaseMask|PointerMotionMask;
+    XEvent event;
+    int c, x, y, _shit;
+    unsigned int _cunt;
+    Window _fuck;
+
+    if ((c = client_from_window(ev->xbutton.subwindow)) ==-1 || WSWIN(c).is_full) return;
+    win_focus(c);
+    struct rect geom = WSWIN(c).rect;
+    XQueryPointer(display, root, &_fuck, &_fuck, &x, &y, &_shit, &_shit, &_cunt);
+    do {
+        XMaskEvent(display, mask, &event);
+        switch (event.type) {
+        case ConfigureRequest:
+        case MapRequest:
+            events[event.type](&event);
+            break;
+        case MotionNotify:
+            WSWIN(c).is_mono = 0;
+            if (event.xmotion.state == (MOD|Button1Mask))
+                XMoveWindow(display, WSWIN(c).wn, geom.x + (event.xmotion.x-x), geom.y + (event.xmotion.y-y));
+            else if (event.xmotion.state == (MOD|Button3Mask))
+                XResizeWindow(display, WSWIN(c).wn, geom.w + (event.xmotion.x-x), geom.h + (event.xmotion.y-y));
+            set_client_size(c);
+            update_clients();
+        default: break;
+        }
+    } while (event.type != ButtonRelease);
 }
 
 static void grab_input(void) {
@@ -274,7 +272,6 @@ static void win_del(int w) {
 }
 
 static void win_focus(int w) {
-    if (button_event.subwindow != None) return;
     if (w < 0 || CURWS.size == 0) {
         XSetInputFocus(display, root, RevertToParent, CurrentTime);
         CURWS.cur = CURWS.prev = 0;
