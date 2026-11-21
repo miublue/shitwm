@@ -30,7 +30,6 @@ static void (*events[LASTEvent])(XEvent *ev) = {
     [MapRequest]       = map_request,
     [UnmapNotify]      = unmap_notify,
     [DestroyNotify]    = destroy_notify,
-    [EnterNotify]      = enter_notify,
     [KeyPress]         = key_press,
     [ButtonPress]      = button_press,
 };
@@ -161,23 +160,6 @@ static void destroy_notify(XEvent *ev) {
     update_clients();
 }
 
-static void enter_notify(XEvent *ev) {
-    if (!CURWS.size || WSWIN(CURWS.cur).is_full) return;
-    while (XCheckTypedEvent(display, EnterNotify, ev));
-    if (!FOCUS_ON_HOVER) return;
-    int c = client_from_window(ev->xcrossing.window);
-    if (c != -1) {
-        win_focus(c);
-        return;
-    }
-    // these values aren't optional, i'm forced to allocate and free this array
-    Window parent, _root, *_children; uint32_t _num_children;
-    XQueryTree(display, ev->xcrossing.window, &_root, &parent, &_children, &_num_children);
-    if (_num_children) XFree(_children);
-    // if window doesn't exist, try focusing its parent
-    win_focus(client_from_window(parent));
-}
-
 static void key_press(XEvent *ev) {
     KeySym keysym = XkbKeycodeToKeysym(display, ev->xkey.keycode, 0, 0);
     for (size_t i = 0; i < LEN(keys); ++i) {
@@ -188,17 +170,15 @@ static void key_press(XEvent *ev) {
 
 static void button_press(XEvent *ev) {
     if (ev->xbutton.subwindow == None || !CURWS.size || WSWIN(CURWS.cur).is_full) return;
-
     const uint32_t mask = ButtonPressMask|ButtonReleaseMask|PointerMotionMask;
     XEvent event;
     int c, x, y, _shit;
-    unsigned int _cunt;
     Window _fuck;
 
-    if ((c = client_from_window(ev->xbutton.subwindow)) ==-1 || WSWIN(c).is_full) return;
+    if ((c = client_from_window(ev->xbutton.subwindow)) == -1 || WSWIN(c).is_full) return;
     win_focus(c);
     struct rect geom = WSWIN(c).rect;
-    XQueryPointer(display, root, &_fuck, &_fuck, &x, &y, &_shit, &_shit, &_cunt);
+    XQueryPointer(display, root, &_fuck, &_fuck, &x, &y, &_shit, &_shit, (unsigned int*)&_shit);
     do {
         XMaskEvent(display, mask, &event);
         switch (event.type) {
@@ -209,9 +189,9 @@ static void button_press(XEvent *ev) {
         case MotionNotify:
             WSWIN(c).is_mono = 0;
             if (event.xmotion.state == (MOD|Button1Mask))
-                XMoveWindow(display, WSWIN(c).wn, geom.x + (event.xmotion.x-x), geom.y + (event.xmotion.y-y));
+                XMoveWindow(display, WSWIN(c).wn, geom.x+event.xmotion.x-x, geom.y+event.xmotion.y-y);
             else if (event.xmotion.state == (MOD|Button3Mask))
-                XResizeWindow(display, WSWIN(c).wn, geom.w + (event.xmotion.x-x), geom.h + (event.xmotion.y-y));
+                XResizeWindow(display, WSWIN(c).wn, geom.w+event.xmotion.x-x, geom.h+event.xmotion.y-y);
             set_client_size(c);
             update_clients();
         default: break;

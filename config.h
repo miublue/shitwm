@@ -4,7 +4,6 @@
 #include <X11/XF86keysym.h>
 
 #define INIT_SCRIPT "$HOME/.shitwmrc &"
-#define FOCUS_ON_HOVER 0
 #define TITLE_ON_MIDDLE 1
 #define TITLEBAR_HEIGHT 18
 #define TITLEBAR_FONT "Ioskeley Mono:size=12"
